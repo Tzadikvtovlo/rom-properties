@@ -1,7 +1,7 @@
-name: Auto Translate to Hebrew
+name: Auto Translate to Hebrew (Gemini)
 
 on:
-  workflow_dispatch: # מופעל ידנית בלחיצת כפתור
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -17,17 +17,22 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y gettext
-          pip install polib deep-translator
+          pip install polib requests
 
-      - name: Generate and translate locale/he.po
+      - name: Translate with Gemini API
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           python3 - << 'EOF'
+          import datetime
           import glob
+          import json
           import os
           import time
           import polib
-          from deep_translator import GoogleTranslator
+          import requests
 
+          api_key = os.environ["GEMINI_API_KEY"]
           pot_files = glob.glob('locale/*.pot')
           target_path = 'locale/he.po'
 
@@ -36,45 +41,73 @@ jobs:
           elif pot_files:
               po = polib.pofile(pot_files[0])
           else:
-              # שימוש בקובץ שפה קיים כבסיס וניקוי התרגומים שלו
               po_files = [f for f in sorted(glob.glob('locale/*.po')) if not f.endswith('he.po')]
-              if not po_files:
-                  raise FileNotFoundError("No .pot or .po files found in locale/")
               base_file = 'locale/ar.po' if 'locale/ar.po' in po_files else po_files[0]
               po = polib.pofile(base_file)
               for e in po:
                   e.msgstr = ''
                   e.msgstr_plural = {k: '' for k in e.msgstr_plural}
-                  if 'fuzzy' in e.flags:
-                      e.flags.remove('fuzzy')
 
-          # עדכון כותרות השפה לעברית
+          now_str = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M+0000')
+          po.metadata['PO-Revision-Date'] = now_str
+          po.metadata['Last-Translator'] = 'Gemini AI'
+          po.metadata['Language-Team'] = 'Hebrew'
           po.metadata['Language'] = 'he'
           po.metadata['Plural-Forms'] = 'nplurals=2; plural=(n != 1);'
 
-          translator = GoogleTranslator(source='en', target='iw')
-
-          for i, entry in enumerate(po):
+          tasks = []
+          for entry in po:
               if entry.obsolete:
                   continue
-              try:
-                  if entry.msgid and not entry.msgstr:
-                      entry.msgstr = translator.translate(entry.msgid) or ''
-                  if entry.msgid_plural:
-                      if not entry.msgstr_plural.get(0):
-                          entry.msgstr_plural[0] = translator.translate(entry.msgid) or ''
-                      if not entry.msgstr_plural.get(1):
-                          entry.msgstr_plural[1] = translator.translate(entry.msgid_plural) or ''
-                  if 'fuzzy' in entry.flags:
-                      entry.flags.remove('fuzzy')
-              except Exception as ex:
-                  print(f"Skipping entry {i} due to error: {ex}")
+              if 'fuzzy' in entry.flags:
+                  entry.flags.remove('fuzzy')
+              if entry.msgid and not entry.msgstr:
+                  tasks.append((entry, False, None, entry.msgid))
+              if entry.msgid_plural:
+                  if not entry.msgstr_plural.get(0):
+                      tasks.append((entry, True, 0, entry.msgid))
+                  if not entry.msgstr_plural.get(1):
+                      tasks.append((entry, True, 1, entry.msgid_plural))
 
-              if i % 50 == 0:
-                  time.sleep(0.5)
+          def call_gemini(strings_list):
+              prompt = (
+                  "Translate the following JSON array of UI strings from English to natural Hebrew "
+                  "for a desktop utility that displays metadata of console ROMs and disc images (rom-properties). "
+                  "Keep all placeholders (%s, %d, %u, {0}, etc.), escape sequences (\\n, \\t), HTML tags, "
+                  "and keyboard mnemonics (& or _) intact. Return ONLY a JSON array of strings of the exact same length.\n\n"
+                  + json.dumps(strings_list, ensure_ascii=False)
+              )
+              payload = {
+                  "contents": [{"parts": [{"text": prompt}]}],
+                  "generationConfig": {"responseMimeType": "application/json"}
+              }
+              for model in ["gemini-3.8-flash", "gemini-2.5-flash"]:
+                  url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+                  r = requests.post(url, headers={"x-goog-api-key": api_key, "Content-Type": "application/json"}, json=payload, timeout=90)
+                  if r.status_code == 404:
+                      continue
+                  r.raise_for_status()
+                  text = r.json()["candidates"][0]["content"]["parts"][0]["text"]
+                  return json.loads(text)
+              raise RuntimeError("No supported Gemini Flash model responded.")
 
-          po.save(target_path)
-          print(f"Saved {target_path} successfully.")
+          BATCH_SIZE = 150
+          for idx in range(0, len(tasks), BATCH_SIZE):
+              batch = tasks[idx:idx + BATCH_SIZE]
+              src_texts = [item[3] for item in batch]
+              translated = call_gemini(src_texts)
+              if len(translated) != len(batch):
+                  raise ValueError(f"Mismatch: sent {len(batch)}, got {len(translated)}")
+              for (entry, is_plural, p_idx, _), res in zip(batch, translated):
+                  if is_plural:
+                      entry.msgstr_plural[p_idx] = res
+                  else:
+                      entry.msgstr = res
+              po.save(target_path)
+              print(f"Translated {min(idx + BATCH_SIZE, len(tasks))}/{len(tasks)}")
+              time.sleep(7)  # שמירה על קצב בטוח למכסה החינמית
+
+          print("Done!")
           EOF
 
       - name: Check PO syntax
@@ -86,5 +119,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add locale/he.po
-          git diff --cached --quiet || git commit -m "Add auto-translated Hebrew locale (he.po)"
+          git diff --cached --quiet || git commit -m "Add Hebrew translation (he.po)"
           git push
