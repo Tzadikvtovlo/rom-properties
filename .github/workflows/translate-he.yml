@@ -48,7 +48,7 @@ jobs:
                   e.msgstr = ''
                   e.msgstr_plural = {k: '' for k in e.msgstr_plural}
 
-          now_str = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M+0000')
+          now_str = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%d %H:%M+0000')
           po.metadata['PO-Revision-Date'] = now_str
           po.metadata['Last-Translator'] = 'Gemini AI'
           po.metadata['Language-Team'] = 'Hebrew'
@@ -69,6 +69,12 @@ jobs:
                   if not entry.msgstr_plural.get(1):
                       tasks.append((entry, True, 1, entry.msgid_plural))
 
+          MODELS = [
+              ("gemini-2.5-flash", {"thinkingBudget": 0}),
+              ("gemini-3.6-flash", {"thinkingLevel": "minimal"}),
+              ("gemini-3.8-flash", {"thinkingLevel": "low"}),
+          ]
+
           def call_gemini(strings_list):
               prompt = (
                   "Translate the following JSON array of UI strings from English to natural Hebrew "
@@ -77,27 +83,57 @@ jobs:
                   "and keyboard mnemonics (& or _) intact. Return ONLY a JSON array of strings of the exact same length.\n\n"
                   + json.dumps(strings_list, ensure_ascii=False)
               )
-              payload = {
-                  "contents": [{"parts": [{"text": prompt}]}],
-                  "generationConfig": {"responseMimeType": "application/json"}
-              }
-              for model in ["gemini-3.8-flash", "gemini-2.5-flash"]:
-                  url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
-                  r = requests.post(url, headers={"x-goog-api-key": api_key, "Content-Type": "application/json"}, json=payload, timeout=90)
-                  if r.status_code == 404:
-                      continue
-                  r.raise_for_status()
-                  text = r.json()["candidates"][0]["content"]["parts"][0]["text"]
-                  return json.loads(text)
-              raise RuntimeError("No supported Gemini Flash model responded.")
+              last_err = None
+              for attempt in range(3):
+                  for model, t_cfg in MODELS:
+                      url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+                      payload = {
+                          "contents": [{"parts": [{"text": prompt}]}],
+                          "generationConfig": {
+                              "responseMimeType": "application/json",
+                              "thinkingConfig": t_cfg,
+                          },
+                      }
+                      try:
+                          r = requests.post(
+                              url,
+                              headers={"x-goog-api-key": api_key, "Content-Type": "application/json"},
+                              json=payload,
+                              timeout=180,
+                          )
+                          if r.status_code == 404:
+                              continue
+                          if r.status_code in (429, 503):
+                              print(f"{model} returned HTTP {r.status_code}, trying fallback/retry...")
+                              last_err = f"HTTP {r.status_code}: {r.text[:200]}"
+                              continue
+                          if not r.ok:
+                              raise RuntimeError(f"{model} HTTP {r.status_code}: {r.text[:300]}")
+                          text = r.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+                          return json.loads(text)
+                      except (requests.exceptions.Timeout, requests.exceptions.ConnectionError, json.JSONDecodeError) as e:
+                          print(f"{model} error on attempt {attempt + 1}: {e}")
+                          last_err = e
+                  time.sleep(15)
+              raise RuntimeError(f"Gemini request failed after retries: {last_err}")
 
-          BATCH_SIZE = 150
+          def translate_batch(batch):
+              texts = [item[3] for item in batch]
+              res = call_gemini(texts)
+              if isinstance(res, list) and len(res) == len(batch):
+                  return [str(x) for x in res]
+              if len(batch) == 1:
+                  raise ValueError(f"Invalid response for single item: {res}")
+              mid = len(batch) // 2
+              print(f"Length mismatch ({len(res)} vs {len(batch)}), splitting batch...")
+              time.sleep(5)
+              return translate_batch(batch[:mid]) + translate_batch(batch[mid:])
+
+          print(f"Total strings to translate: {len(tasks)}")
+          BATCH_SIZE = 100
           for idx in range(0, len(tasks), BATCH_SIZE):
               batch = tasks[idx:idx + BATCH_SIZE]
-              src_texts = [item[3] for item in batch]
-              translated = call_gemini(src_texts)
-              if len(translated) != len(batch):
-                  raise ValueError(f"Mismatch: sent {len(batch)}, got {len(translated)}")
+              translated = translate_batch(batch)
               for (entry, is_plural, p_idx, _), res in zip(batch, translated):
                   if is_plural:
                       entry.msgstr_plural[p_idx] = res
@@ -105,7 +141,7 @@ jobs:
                       entry.msgstr = res
               po.save(target_path)
               print(f"Translated {min(idx + BATCH_SIZE, len(tasks))}/{len(tasks)}")
-              time.sleep(7)  # שמירה על קצב בטוח למכסה החינמית
+              time.sleep(7)
 
           print("Done!")
           EOF
