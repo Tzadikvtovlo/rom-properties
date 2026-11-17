@@ -9069,31 +9069,31 @@ msgstr "גודל תצוגה"
 #, c++-format
 msgctxt "DirectDrawSurface"
 msgid "RGB ({:d}-bit)"
-msgstr "RGB (%d סיביות)"
+msgstr "RGB ({:d}-bit)"
 
 #: ../src/librptexture/fileformat/DirectDrawSurface.cpp:1299
 #, c++-format
 msgctxt "DirectDrawSurface"
 msgid "Alpha ({:d}-bit)"
-msgstr "אלפא (%d סיביות)"
+msgstr "אלפא ({:d}-bit)"
 
 #: ../src/librptexture/fileformat/DirectDrawSurface.cpp:1303
 #, c++-format
 msgctxt "DirectDrawSurface"
 msgid "YUV ({:d}-bit)"
-msgstr "YUV (%d סיביות)"
+msgstr "YUV ({:d}-bit)"
 
 #: ../src/librptexture/fileformat/DirectDrawSurface.cpp:1308
 #, c++-format
 msgctxt "DirectDrawSurface"
 msgid "Luminance + Alpha ({:d}-bit)"
-msgstr "בהירות + אלפא (%d סיביות)"
+msgstr "בהירות + אלפא ({:d}-bit)"
 
 #: ../src/librptexture/fileformat/DirectDrawSurface.cpp:1312
 #, c++-format
 msgctxt "DirectDrawSurface"
 msgid "Luminance ({:d}-bit)"
-msgstr "בהירות (%d סיביות)"
+msgstr "בהירות ({:d}-bit)"
 
 #: ../src/librptexture/fileformat/DirectDrawSurface.cpp:1350
 msgctxt "DirectDrawSurface"
