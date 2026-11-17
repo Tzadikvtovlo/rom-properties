@@ -61,6 +61,7 @@ Name: "main"; Description: "Main Files"; Types: full compact custom; Flags: fixe
 Name: "doc"; Description: "Documentation"; Types: full
 Name: "locale"; Description: "Languages"; Types: full
 Name: "locale/ar"; Description: "Arabic"; Types: full
+Name: "locale/he"; Description: "Hebrew"; Types: full
 Name: "locale/de"; Description: "German"; Types: full
 Name: "locale/es"; Description: "Spanish"; Types: full
 Name: "locale/fr"; Description: "French"; Types: full
@@ -84,7 +85,7 @@ begin
   begin
     MsgBox('This ROM Properties Page Shell Extension installer is designed for Windows XP, Windows Server 2003, and Windows Vista only.' + #13#10#13#10 +
       'You can get the Windows 7/8/10/11 version at:' + #13#10 +
-      '• https://github.com/GerbilSoft/rom-properties', mbCriticalError, MB_OK)
+      'â€¢ https://github.com/GerbilSoft/rom-properties', mbCriticalError, MB_OK)
     Result := False
     Exit;
   end;
@@ -100,8 +101,8 @@ begin
     begin
       MsgBox('The Microsoft C++ 2015-2017 runtime is missing.' + #13#10#13#10 +
         'Please install both the 32-bit and 64-bit versions, available at:' + #13#10 +
-        '• https://aka.ms/vs/15/release/VC_redist.x86.exe' + #13#10 +
-        '• https://aka.ms/vs/15/release/VC_redist.x64.exe', mbCriticalError, MB_OK)
+        'â€¢ https://aka.ms/vs/15/release/VC_redist.x86.exe' + #13#10 +
+        'â€¢ https://aka.ms/vs/15/release/VC_redist.x64.exe', mbCriticalError, MB_OK)
       Result := False
       Exit;
     end;
@@ -112,7 +113,7 @@ begin
     begin
       MsgBox('The Microsoft C++ 2015-2017 runtime is missing.' + #13#10#13#10 +
         'Please install the 32-bit version, available at:' + #13#10 +
-        '• https://aka.ms/vs/15/release/VC_redist.x86.exe', mbCriticalError, MB_OK)
+        'â€¢ https://aka.ms/vs/15/release/VC_redist.x86.exe', mbCriticalError, MB_OK)
       Result := False
       Exit;
     end;
