@@ -262,6 +262,7 @@ Source: "..\src\win32\res\rom-properties.propdesc"; DestDir: "{app}"; Components
 
 ; Localization files
 Source: "..\pkg_windows\build.i386\locale\ar.gmo"; DestDir: "{app}\locale\ar\LC_MESSAGES"; DestName: "rom-properties.mo"; Components: locale/ar; Flags: ignoreversion
+Source: "..\pkg_windows\build.i386\locale\he.gmo"; DestDir: "{app}\locale\ar\LC_MESSAGES"; DestName: "rom-properties.mo"; Components: locale/ar; Flags: ignoreversion
 Source: "..\pkg_windows\build.i386\locale\de.gmo"; DestDir: "{app}\locale\de\LC_MESSAGES"; DestName: "rom-properties.mo"; Components: locale/de; Flags: ignoreversion
 Source: "..\pkg_windows\build.i386\locale\es.gmo"; DestDir: "{app}\locale\es\LC_MESSAGES"; DestName: "rom-properties.mo"; Components: locale/es; Flags: ignoreversion
 Source: "..\pkg_windows\build.i386\locale\fr.gmo"; DestDir: "{app}\locale\fr\LC_MESSAGES"; DestName: "rom-properties.mo"; Components: locale/fr; Flags: ignoreversion
