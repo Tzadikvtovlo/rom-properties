@@ -66,6 +66,7 @@ Name: "main"; Description: "Main Files"; Types: full compact custom; Flags: fixe
 Name: "doc"; Description: "Documentation"; Types: full
 Name: "locale"; Description: "Languages"; Types: full
 Name: "locale/ar"; Description: "Arabic"; Types: full
+Name: "locale/he"; Description: "Hebrew"; Types: full
 Name: "locale/de"; Description: "German"; Types: full
 Name: "locale/es"; Description: "Spanish"; Types: full
 Name: "locale/fr"; Description: "French"; Types: full
